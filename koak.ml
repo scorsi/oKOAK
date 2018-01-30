@@ -1,6 +1,7 @@
 (* Main *)
 
 let main () =
+    Hashtbl.add Parser.binop_precedence ':' 2;
     Hashtbl.add Parser.binop_precedence '<' 10;
     Hashtbl.add Parser.binop_precedence '+' 20;
     Hashtbl.add Parser.binop_precedence '-' 20;

@@ -4,9 +4,18 @@ let binop_precedence:(char, int) Hashtbl.t = Hashtbl.create 10
 
 let precedence c = try Hashtbl.find binop_precedence c with Not_found -> -1
 
+(* primary
+ *  ::= identifier
+ *  ::= numberexpr
+ *  ::= parenexpr *)
 let rec parse_primary = parser
+    (* numberexpr ::= number *)
     | [< 'Token.Number number >] -> Ast.Number number
+    (* parenexpr ::= '(' expression ')' *)
     | [< 'Token.Any '('; expr = parse_expr; 'Token.Any ')' ?? "Expected ')'" >] -> expr
+    (* identifierexpr
+     *  ::= identifier
+     *  ::= identifier '(' argumentexpr ')' *)
     | [< 'Token.Identifier id; stream >] ->
         let rec parse_args args = parser
             | [< arg = parse_expr; stream >] ->
@@ -21,6 +30,7 @@ let rec parse_primary = parser
         in parse_identifier id stream
     | [< >] -> raise (Stream.Error "Unknown token when expecting an expression.")
 
+(* binoprhs ::= (#binop primary)* *)
 and parse_binop_rhs expr_prec lhs stream =
     match Stream.peek stream with
     | Some (Token.Any op) when Hashtbl.mem binop_precedence op ->
@@ -43,9 +53,11 @@ and parse_binop_rhs expr_prec lhs stream =
         end
     | _ -> lhs
 
+(* expression ::= primary binoprhs *)
 and parse_expr = parser
     | [< lhs = parse_primary; stream >] -> parse_binop_rhs 0 lhs stream
 
+(* prototype ::= identifier '(' identifier* ')' *)
 let parse_prototype =
     let rec parse_args args = parser
         | [< 'Token.Identifier id; args'= parse_args (id :: args) >] -> args'
@@ -55,15 +67,19 @@ let parse_prototype =
         Ast.Prototype (id, Array.of_list (List.rev args))
     | [< >] -> raise (Stream.Error "Expected function name in prototype")
 
+(* definition ::= 'def' prototype expression *)
 let parse_definition = parser
     | [< 'Token.Def; proto = parse_prototype; expr = parse_expr >] -> Ast.Function (proto, expr)
 
+(* topexpr ::= expression *)
 let parse_topexpr = parser
     | [< expr = parse_expr >] -> Ast.Function (Ast.Prototype ("", [||]), expr)
 
+(* external ::= 'extern' prototype *)
 let parse_extern = parser
     | [< 'Token.Extern; proto = parse_prototype >] -> proto
 
+(* top ::= definition | external | expression | ';' *)
 let rec parse stream =
     match Stream.peek stream with
     | None -> ()
