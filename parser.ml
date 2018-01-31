@@ -10,7 +10,8 @@ let precedence c = try Hashtbl.find binop_precedence c with Not_found -> -1
  *  ::= parenexpr *)
 let rec parse_primary = parser
     (* numberexpr ::= number *)
-    | [< 'Token.Number number >] -> Ast.Number number
+    | [< 'Token.Integer number >] -> Ast.Integer number
+    | [< 'Token.Double number >] -> Ast.Double number
     (* parenexpr ::= '(' expression ')' *)
     | [< 'Token.Any '('; expr = parse_expr; 'Token.Any ')' ?? "Expected ')'" >] -> expr
     (* identifierexpr
@@ -57,14 +58,14 @@ and parse_binop_rhs expr_prec lhs stream =
 and parse_expr = parser
     | [< lhs = parse_primary; stream >] -> parse_binop_rhs 0 lhs stream
 
-(* prototype ::= identifier '(' identifier* ')' *)
+(* prototype ::= identifier '(' (identifier ':' identifier)* ')' *)
 let parse_prototype =
     let rec parse_args args = parser
-        | [< 'Token.Identifier id; args'= parse_args (id :: args) >] -> args'
+        | [< 'Token.Identifier id; 'Token.Any ':' ?? "Expected ':' in prototype argument"; 'Token.Identifier argtype ?? "Expected argument type in prototype argument"; args' = parse_args ((Ast.Argument (id, argtype)) :: args) >] -> args'
         | [< >] -> args
     in parser
-    | [< 'Token.Identifier id; 'Token.Any '(' ?? "Expected '(' in prototype"; args = parse_args []; 'Token.Any ')' ?? "Expected ')' in prototype" >] ->
-        Ast.Prototype (id, Array.of_list (List.rev args))
+    | [< 'Token.Identifier id; 'Token.Any '(' ?? "Expected '(' in prototype"; args = parse_args []; 'Token.Any ')' ?? "Expected ')' in prototype"; 'Token.Any ':' ?? "Expected ':' in prototype"; 'Token.Identifier funtype ?? "Expected function type in prototype" >] ->
+        Ast.Prototype (id, Array.of_list (List.rev args), funtype)
     | [< >] -> raise (Stream.Error "Expected function name in prototype")
 
 (* definition ::= 'def' prototype expression *)
@@ -73,9 +74,8 @@ let parse_definition = parser
 
 (* topexpr ::= expression *)
 let parse_topexpr = parser
-    | [< expr = parse_expr >] -> Ast.Function (Ast.Prototype ("", [||]), expr)
+    | [< expr = parse_expr >] -> Ast.Function (Ast.Prototype ("", [||], "double"), expr)
 
 (* external ::= 'extern' prototype *)
 let parse_extern = parser
     | [< 'Token.Extern; proto = parse_prototype >] -> proto
-

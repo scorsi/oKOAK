@@ -1,11 +1,17 @@
 (* AST *)
 
 type expr =
-    | Number of float
+    | Double of float
+    | Integer of int
     | Variable of string
     | Binary of char * expr * expr
     | Call of string * expr array
 
-type proto = Prototype of string * string array
+(* Argument : Symbol Type *)
+type arg = Argument of string * string
 
+(* Prototype : Symbol Arguments Type *)
+type proto = Prototype of string * arg array * string
+
+(* Function : Prototype Expr *)
 type func = Function of proto * expr

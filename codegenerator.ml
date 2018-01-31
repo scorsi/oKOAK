@@ -9,10 +9,14 @@ let context = global_context ()
 let kmodule = create_module context "koak"
 let builder = builder context
 let named_values:(string, llvalue) Hashtbl.t = Hashtbl.create 10
+
 let double_type = double_type context
+let i64_type = i64_type context
+let void_type = void_type context
 
 let rec codegen_expr = function
-    | Ast.Number n -> const_float double_type n
+    | Ast.Double n -> const_float double_type n
+    | Ast.Integer n -> const_int i64_type n
     | Ast.Variable name ->
         (try Hashtbl.find named_values name
         with
@@ -21,14 +25,33 @@ let rec codegen_expr = function
         let lhs_val = codegen_expr lhs in
         let rhs_val = codegen_expr rhs in
         begin
-            match op with
-            | '+' -> build_fadd lhs_val rhs_val "addtmp" builder
-            | '-' -> build_fsub lhs_val rhs_val "subtmp" builder
-            | '*' -> build_fmul lhs_val rhs_val "multmp" builder
-            | '<' ->
-                let i = build_fcmp Fcmp.Ult lhs_val rhs_val "cmptmp" builder in
-                build_uitofp i double_type "booltmp" builder
-            | _ -> raise (Error "Invalid binary operator")
+            if (type_of lhs_val) = (type_of rhs_val)
+            then 
+                match string_of_lltype (type_of lhs_val) with
+                | "double" ->
+                    begin
+                        match op with
+                        | '+' -> build_fadd lhs_val rhs_val "addtmp" builder
+                        | '-' -> build_fsub lhs_val rhs_val "subtmp" builder
+                        | '*' -> build_fmul lhs_val rhs_val "multmp" builder
+                        | '<' ->
+                            let i = build_fcmp Fcmp.Ult lhs_val rhs_val "cmptmp" builder in
+                            build_uitofp i double_type "booltmp" builder
+                        | _ -> raise (Error "Invalid binary operator")
+                    end
+                | "i64" ->
+                    begin
+                        match op with
+                        | '+' -> build_add lhs_val rhs_val "addtmp" builder
+                        | '-' -> build_sub lhs_val rhs_val "subtmp" builder
+                        | '*' -> build_mul lhs_val rhs_val "multmp" builder
+                        | '<' ->
+                            let i = build_fcmp Fcmp.Ult lhs_val rhs_val "cmptmp" builder in
+                            build_uitofp i double_type "booltmp" builder
+                        | _ -> raise (Error "Invalid binary operator")
+                    end
+                | _ -> raise (Error "TODO")
+            else raise (Error "Mismatch type")
         end
     | Ast.Call (id, args) ->
         let id =
@@ -42,10 +65,26 @@ let rec codegen_expr = function
         let args = Array.map codegen_expr args in
         build_call id args "calltmp" builder
 
+let codegen_type = function
+    | "double" -> double_type
+    | "int" -> i64_type
+    | "void" -> void_type
+    | _ -> raise (Error "Invalid type")
+
 let codegen_proto = function
-    | Ast.Prototype (name, args) ->
-        let doubles = Array.make (Array.length args) double_type in
-        let ft = function_type double_type doubles in
+    | Ast.Prototype (name, arguments, funtype) ->
+        let rec create_arguments_array index args =
+            if (Array.length arguments) > index
+            then
+                let argtype =
+                    match arguments.(index) with
+                    | Ast.Argument (_, argtype') -> argtype'
+                in
+                create_arguments_array (index + 1) ((codegen_type argtype) :: args)
+            else args
+        in
+        let arguments' = Array.of_list (List.rev (create_arguments_array 0 [])) in
+        let ft = function_type (codegen_type funtype) arguments' in
         let f =
             match lookup_function name kmodule with
             | None -> declare_function name ft kmodule
@@ -57,7 +96,10 @@ let codegen_proto = function
                 f
         in
         Array.iteri (fun i a ->
-            let n = args.(i) in
+            let n =
+                match arguments.(i) with
+                | Ast.Argument (n', _) -> n'
+            in
             set_value_name n a;
             Hashtbl.add named_values n a;
         ) (params f);
