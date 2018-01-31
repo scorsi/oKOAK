@@ -79,29 +79,3 @@ let parse_topexpr = parser
 let parse_extern = parser
     | [< 'Token.Extern; proto = parse_prototype >] -> proto
 
-(* top ::= definition | external | expression | ';' *)
-let rec parse stream =
-    match Stream.peek stream with
-    | None -> ()
-    | Some (Token.Any ';') ->
-        Stream.junk stream;
-        parse stream
-    | Some token ->
-        begin
-            try match token with
-            | Token.Def ->
-                ignore(parse_definition stream);
-                print_endline "definition"
-            | Token.Extern ->
-                ignore(parse_extern stream);
-                print_endline "extern"
-            | _ ->
-                ignore(parse_topexpr stream);
-                print_endline "topexpr"
-            with
-            | Stream.Error s ->
-                Stream.junk stream;
-                print_endline s;
-        end;
-        print_string "cmd> "; flush stdout;
-        parse stream
