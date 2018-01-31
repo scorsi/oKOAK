@@ -3,6 +3,9 @@
 type expr =
     | Double of float
     | Integer of int
+    | Char of int
+    (* | String of string *)
+    | Boolean of int
     | Variable of string
     | Binary of char * expr * expr
     | Call of string * expr array

@@ -4,7 +4,7 @@ let rec lex = parser
     (* whitespaces *)
     | [< ' (' ' | '\n' | '\r' | '\t'); stream >] -> lex stream
     (* identifier: [a-zA-Z][a-zA-Z0-9] *)
-    | [< ' ('a' .. 'z' | 'A' .. 'Z' as id); stream >] ->
+    | [< ' ('a' .. 'z' | 'A' .. 'Z' | '_' as id); stream >] ->
         let buffer = Buffer.create 1 in Buffer.add_char buffer id;
         lexer_identifier buffer stream (* Return a Token.Identifier or Token.Def or Token.Extern *)
     (* number: [0-9.]+ *)
@@ -15,6 +15,14 @@ let rec lex = parser
     | [< ' ('.' as num); stream >] ->
         let buffer = Buffer.create 1 in Buffer.add_char buffer num;
         lexer_double buffer stream (* Return a Token.Double *)
+    (* char: '.' *)
+    | [< ' ('''); 'any; ' ('''); stream >] -> [< 'Token.Char (int_of_char any); lex stream >]
+    (* string: "." *)
+    (*
+    | [< ' ('"'); stream >] -> 
+        let buffer = Buffer.create 0 in
+        lexer_string buffer stream (* Return a Token.String *)
+    *)
     (* any *)
     | [< 'any; stream >] -> [< 'Token.Any any; lex stream >]
     (* end of stream *)
@@ -35,12 +43,21 @@ and lexer_double buffer = parser
         lexer_double buffer stream
     | [< stream = lex >] -> [< 'Token.Double (float_of_string (Buffer.contents buffer)); stream >]
 
+(*
+and lexer_string buffer = parser
+    | [< ' ('"'); stream >] -> [< 'Token.String (Buffer.contents buffer); stream >]
+    | [< 'any; stream >] ->
+        Buffer.add_char buffer num;
+        lexer_string buffer stream
+*)
 and lexer_identifier buffer = parser
-    | [< ' ('a' .. 'z' | 'A' .. 'Z' as id); stream >] ->
+    | [< ' ('a' .. 'z' | 'A' .. 'Z' | '_' as id); stream >] ->
         Buffer.add_char buffer id;
         lexer_identifier buffer stream
     | [< stream = lex >] ->
         match Buffer.contents buffer with
         | "def" -> [< 'Token.Def; stream >]
         | "extern" -> [< 'Token.Extern; stream >]
+        | "true" -> [< 'Token.Boolean 1; stream >]
+        | "false" -> [< 'Token.Boolean 0; stream >]
         | id -> [< 'Token.Identifier id; stream >]

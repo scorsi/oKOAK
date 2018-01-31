@@ -13,10 +13,24 @@ let named_values:(string, llvalue) Hashtbl.t = Hashtbl.create 10
 let double_type = double_type context
 let i64_type = i64_type context
 let void_type = void_type context
+let i8_type = i8_type context
+let i1_type = i1_type context
+
+let codegen_type = function
+    | "double" -> double_type
+    | "int" -> i64_type
+    | "char" -> i8_type
+    (* | "string" -> string_type *)
+    | "bool" -> i1_type
+    | "void" -> void_type
+    | _ -> raise (Error "Invalid type")
 
 let rec codegen_expr = function
     | Ast.Double n -> const_float double_type n
     | Ast.Integer n -> const_int i64_type n
+    | Ast.Char c -> const_int i8_type c
+    (* | Ast.String s -> const_string string_type s *)
+    | Ast.Boolean b -> const_int i1_type b
     | Ast.Variable name ->
         (try Hashtbl.find named_values name
         with
@@ -39,7 +53,7 @@ let rec codegen_expr = function
                             build_uitofp i double_type "booltmp" builder
                         | _ -> raise (Error "Invalid binary operator")
                     end
-                | "i64" ->
+                | "i8" | "i64" ->
                     begin
                         match op with
                         | '+' -> build_add lhs_val rhs_val "addtmp" builder
@@ -64,12 +78,6 @@ let rec codegen_expr = function
         else raise (Error "Incorrect number of arguments passed");
         let args = Array.map codegen_expr args in
         build_call id args "calltmp" builder
-
-let codegen_type = function
-    | "double" -> double_type
-    | "int" -> i64_type
-    | "void" -> void_type
-    | _ -> raise (Error "Invalid type")
 
 let codegen_proto = function
     | Ast.Prototype (name, arguments, funtype) ->

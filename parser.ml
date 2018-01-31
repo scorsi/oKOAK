@@ -12,6 +12,9 @@ let rec parse_primary = parser
     (* numberexpr ::= number *)
     | [< 'Token.Integer number >] -> Ast.Integer number
     | [< 'Token.Double number >] -> Ast.Double number
+    | [< 'Token.Char c >] -> Ast.Char c
+    (* | [< 'Token.String s >] -> Ast.String s *)
+    | [< 'Token.Boolean b >] -> Ast.Boolean b
     (* parenexpr ::= '(' expression ')' *)
     | [< 'Token.Any '('; expr = parse_expr; 'Token.Any ')' ?? "Expected ')'" >] -> expr
     (* identifierexpr
