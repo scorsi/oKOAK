@@ -9,6 +9,8 @@ type expr =
     | Variable of string
     | Binary of char * expr * expr
     | Call of string * expr array
+    (* if then else *)
+    | If of expr * expr * expr
 
 (* Argument : Symbol Type *)
 type arg = Argument of string * string

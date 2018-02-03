@@ -3,6 +3,11 @@
 type token =
     | Def
     | Extern
+    | If
+    | Then
+    | Else
+    | For
+    | In
     | Identifier of string
     | Integer of int
     | Double of float

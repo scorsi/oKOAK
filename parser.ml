@@ -17,6 +17,8 @@ let rec parse_primary = parser
     | [< 'Token.Boolean b >] -> Ast.Boolean b
     (* parenexpr ::= '(' expression ')' *)
     | [< 'Token.Any '('; expr = parse_expr; 'Token.Any ')' ?? "Expected ')'" >] -> expr
+    (* ifexpr ::= 'if' expr 'then' expr 'else' expr *)
+    | [< 'Token.If; condition = parse_expr; 'Token.Then ?? "Expected 'then' in conditional branch."; then_expr = parse_expr; 'Token.Else ?? "Expected 'else' in conditional branch."; else_expr = parse_expr >] -> Ast.If (condition, then_expr, else_expr)
     (* identifierexpr
      *  ::= identifier
      *  ::= identifier '(' argumentexpr ')' *)

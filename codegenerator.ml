@@ -60,11 +60,11 @@ let rec codegen_expr = function
                         | '-' -> build_sub lhs_val rhs_val "subtmp" builder
                         | '*' -> build_mul lhs_val rhs_val "multmp" builder
                         | '<' ->
-                            let i = build_fcmp Fcmp.Ult lhs_val rhs_val "cmptmp" builder in
+                            let i = build_icmp Icmp.Slt lhs_val rhs_val "cmptmp" builder in
                             build_uitofp i double_type "booltmp" builder
                         | _ -> raise (Error "Invalid binary operator")
                     end
-                | _ -> raise (Error "TODO")
+                | _ -> raise (Error "Unknown error: type unknown")
             else raise (Error "Mismatch type")
         end
     | Ast.Call (id, args) ->
@@ -78,6 +78,41 @@ let rec codegen_expr = function
         else raise (Error "Incorrect number of arguments passed");
         let args = Array.map codegen_expr args in
         build_call id args "calltmp" builder
+    | Ast.If (cond, else_expr, then_expr) ->
+        let cond = codegen_expr cond in
+        let cond_val =
+            match string_of_lltype (type_of cond) with
+            | "double" -> build_fcmp Fcmp.One cond (const_float double_type 0.0) "ifcond" builder
+            | "i8" -> build_icmp Icmp.Ne cond (const_int i8_type 0) "ifcond" builder
+            | "i64" -> build_icmp Icmp.Ne cond (const_int i64_type 0) "ifcond" builder
+            | _ -> raise (Error "Unknown error: type unknown")
+        in
+        let start_block = insertion_block builder in
+        let func = block_parent start_block in
+        
+        let then_block = append_block context "then" func in
+        position_at_end then_block builder;
+        let then_val = codegen_expr then_expr in
+        let new_then_block = insertion_block builder in
+
+        let else_block = append_block context "else" func in
+        position_at_end else_block builder;
+        let else_val = codegen_expr else_expr in
+        let new_else_block = insertion_block builder in
+
+        let merge_block = append_block context "ifcont" func in
+        position_at_end merge_block builder;
+        let incoming = [(then_val, new_then_block); (else_val, new_else_block)] in
+        let phi = build_phi incoming "iftmp" builder in
+        position_at_end start_block builder;
+        ignore(build_cond_br cond_val then_block else_block builder);
+
+        position_at_end new_then_block builder; ignore (build_br merge_block builder);
+        position_at_end new_else_block builder; ignore (build_br merge_block builder);
+
+        position_at_end merge_block builder;
+
+        phi
 
 let codegen_proto = function
     | Ast.Prototype (name, arguments, funtype) ->
