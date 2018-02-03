@@ -113,7 +113,7 @@ let codegen_proto = function
         ) (params f);
         f
 
-let codegen_func = function
+let codegen_func optimizer = function
     | Ast.Function (proto, body) ->
         Hashtbl.clear named_values;
         let func = codegen_proto proto in
@@ -123,6 +123,7 @@ let codegen_func = function
             let ret_val = codegen_expr body in
             let _ = build_ret ret_val builder in
             assert_valid_function func;
+            let _ = PassManager.run_function func optimizer in
             func
         with
         | e ->
