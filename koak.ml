@@ -32,17 +32,8 @@ let rec main_loop optimizer stream =
         print_string "ready> "; flush stdout;
         main_loop optimizer stream
 
-let _ =
-    Hashtbl.add Parser.binop_precedence ':' 2;
-    Hashtbl.add Parser.binop_precedence '<' 10;
-    Hashtbl.add Parser.binop_precedence '+' 20;
-    Hashtbl.add Parser.binop_precedence '-' 20;
-    Hashtbl.add Parser.binop_precedence '*' 40;
-
-    print_endline "KOAK, compiler/interpreter";
-    print_string "ready> "; flush stdout;
-    
-    let stream = Lexer.lex (Stream.of_channel stdin) in
+let start stream =
+    let lexer = Lexer.lex stream in
     let optimizer = PassManager.create_function Codegenerator.kmodule in
     begin
         add_instruction_combination optimizer;
@@ -51,7 +42,25 @@ let _ =
         add_cfg_simplification optimizer;
         ignore (PassManager.initialize optimizer);
     end;
-    main_loop optimizer stream;
-
+    main_loop optimizer lexer;
     dump_module Codegenerator.kmodule;
 ;;
+
+let _ =
+    Hashtbl.add Parser.binop_precedence ':' 2;
+    Hashtbl.add Parser.binop_precedence '<' 10;
+    Hashtbl.add Parser.binop_precedence '+' 20;
+    Hashtbl.add Parser.binop_precedence '-' 20;
+    Hashtbl.add Parser.binop_precedence '*' 40;
+
+    if (Array.length Sys.argv) > 1 
+    then
+        let stream = Stream.of_channel (open_in Sys.argv.(1)) in
+        start stream
+    else
+        begin
+            print_endline "KOAK, compiler/interpreter";
+            print_string "ready> "; flush stdout;
+            let stream = Stream.of_channel stdin in
+            start stream
+        end

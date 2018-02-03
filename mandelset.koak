@@ -1,41 +1,39 @@
 extern putchar(c: char):void;
 
-def printdensity(d)
+def printdensity(d:double):double
     if d > 8 then
-        putchar(32)  # ' '
+        putchar(32)
     else if d > 4 then
-        putchar(46)  # '.'
+        putchar(46)
     else if d > 2 then
-        putchar(43)  # '+'
+        putchar(43)
     else
-        putchar(42); # '*'
+        putchar(42)
+;
 
-# Determine whether the specific location diverges.
-# Solve for z = z^2 + c in the complex plane.
-def mandelconverger(real imag iters creal cimag)
+def mandelconverger(real:double imag:double iters:double creal:double cimag:double):double
     if iters > 255 | (real*real + imag*imag > 4) then
         iters
     else
         mandelconverger(real*real - imag*imag + creal,
                         2*real*imag + cimag,
-                        iters+1, creal, cimag);
+                        iters+1, creal, cimag)
+;
 
-# Return the number of iterations required for the iteration to escape
-def mandelconverge(real imag)
-    mandelconverger(real, imag, 0, real, imag);
+def mandelconverge(real:double imag:double):double
+    mandelconverger(real, imag, 0, real, imag)
+;
 
-# Compute and plot the mandelbrot set with the specified 2 dimensional range
-# info.
-def mandelhelp(xmin xmax xstep ymin ymax ystep)
+def mandelhelp(xmin:double xmax:double xstep:double ymin:double ymax:double ystep:double):double
     for y = ymin, y < ymax, ystep in (
         (for x = xmin, x < xmax, xstep in
             printdensity(mandelconverge(x,y)))
         : putchard(10))
+;
 
-# mandel - This is a convenient helper function for plotting the mandelbrot set
-# from the specified position with the specified Magnification.
-def mandel(realstart imagstart realmag imagmag)
+def mandel(realstart:double imagstart:double realmag:double imagmag:double):double
     mandelhelp(realstart, realstart+realmag*78, realmag,
-              imagstart, imagstart+imagmag*40, imagmag);
+              imagstart, imagstart+imagmag*40, imagmag)
+;
 
 mandel(-2.3, -1.3, 0.05, 0.07);
