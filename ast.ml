@@ -11,6 +11,8 @@ type expr =
     | Call of string * expr array
     (* if then else *)
     | If of expr * expr * expr
+    (* for in *)
+    | For of string * expr * expr * expr option * expr
 
 (* Argument : Symbol Type *)
 type arg = Argument of string * string

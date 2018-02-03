@@ -1,1 +1,5 @@
-def toto(a:int):int a;
+extern putchar(c:char):int;
+
+def main():int
+    putchar('a')
+;

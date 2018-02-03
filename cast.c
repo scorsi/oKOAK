@@ -13,7 +13,7 @@ extern double int_to_double(int a)
 }
 
 /* void_to_double - takes a void as parameter and returns 0. */
-extern double void_to_double(void a)
+extern double void_to_double(void)
 {
     return 0;
 }
@@ -33,7 +33,7 @@ extern int double_to_int(double a)
 }
 
 /* void_to_int - takes a void as parameter and returns 0. */
-extern int void_to_int(void a)
+extern int void_to_int(void)
 {
     return 0;
 }
@@ -53,7 +53,7 @@ extern char int_to_char(int a)
 }
 
 /* void_to_char - takes a void as parameter and returns 0. */
-extern char void_to_char(void a)
+extern char void_to_char(void)
 {
     return 0;
 }

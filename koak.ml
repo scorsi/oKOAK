@@ -3,6 +3,7 @@
 open Llvm
 open Llvm_target
 open Llvm_scalar_opts
+open Llvm_bitwriter
 
 (* top ::= definition | external | expression | ';' *)
 let rec main_loop optimizer stream =
@@ -44,6 +45,15 @@ let start stream =
     end;
     main_loop optimizer lexer;
     dump_module Codegenerator.kmodule;
+    (*
+    let target = Target.first () in
+    match target with
+    | Some target ->
+        let targetmachine = TargetMachine.create (Target.default_triple ()) target in
+        TargetMachine.emit_to_file Codegenerator.kmodule CodeGenFileType.ObjectFile "a.out" targetmachine
+    | None -> raise (Error "Can't compile file")
+    *)
+    write_bitcode_file Codegenerator.kmodule "a.out"
 ;;
 
 let _ =

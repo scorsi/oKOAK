@@ -50,10 +50,10 @@ let rec codegen_expr = function
                         | '*' -> build_fmul lhs_val rhs_val "multmp" builder
                         | '<' ->
                             let i = build_fcmp Fcmp.Ult lhs_val rhs_val "cmptmp" builder in
-                            build_uitofp i double_type "booltmp" builder
+                            build_uitofp i double_type "boolcasttmp" builder
                         | _ -> raise (Error "Invalid binary operator")
                     end
-                | "i8" | "i64" ->
+                | "i8" ->
                     begin
                         match op with
                         | '+' -> build_add lhs_val rhs_val "addtmp" builder
@@ -61,7 +61,18 @@ let rec codegen_expr = function
                         | '*' -> build_mul lhs_val rhs_val "multmp" builder
                         | '<' ->
                             let i = build_icmp Icmp.Slt lhs_val rhs_val "cmptmp" builder in
-                            build_uitofp i double_type "booltmp" builder
+                            build_intcast i i8_type "boolcasttmp" builder
+                        | _ -> raise (Error "Invalid binary operator")
+                    end
+                | "i64" ->
+                    begin
+                        match op with
+                        | '+' -> build_add lhs_val rhs_val "addtmp" builder
+                        | '-' -> build_sub lhs_val rhs_val "subtmp" builder
+                        | '*' -> build_mul lhs_val rhs_val "multmp" builder
+                        | '<' ->
+                            let i = build_icmp Icmp.Slt lhs_val rhs_val "cmptmp" builder in
+                            build_intcast i i64_type "boolcasttmp" builder
                         | _ -> raise (Error "Invalid binary operator")
                     end
                 | _ -> raise (Error "Unknown error: type unknown")
@@ -113,6 +124,64 @@ let rec codegen_expr = function
         position_at_end merge_block builder;
 
         phi
+    | Ast.For (identifier, assign, cond, step, body) ->
+        let assign_val = codegen_expr assign in
+        let preheader_block = insertion_block builder in
+        let func = block_parent preheader_block in
+        let loop_block = append_block context "loop" func in
+        ignore(build_br loop_block builder);
+
+        position_at_end loop_block builder;
+
+        let variable = build_phi [(assign_val, preheader_block)] identifier builder in
+        let old_val =
+            try
+                Some (Hashtbl.find named_values identifier)
+            with
+                Not_found -> None
+        in
+        Hashtbl.add named_values identifier variable;
+
+        ignore (codegen_expr body);
+
+        let step_val =
+            match step with
+            | Some step -> codegen_expr step
+            | None ->
+                match string_of_lltype (type_of assign_val) with
+                | "double" -> const_float double_type 0.0
+                | "i8" -> const_int i8_type 0
+                | "i64" -> const_int i64_type 0
+                | _ -> raise (Error "Unknown error: type unknown")
+        in
+        let next_var = build_add variable step_val "nextval" builder in
+        let end_cond = codegen_expr cond in
+        let end_cond =
+            match string_of_lltype (type_of step_val) with
+            | "double" -> build_fcmp Fcmp.One end_cond (const_float double_type 0.0) "loopcond" builder
+            | "i8" -> build_icmp Icmp.Ne end_cond (const_int i8_type 0) "loopcond" builder
+            | "i64" -> build_icmp Icmp.Ne end_cond (const_int i64_type 0) "loopcond" builder
+            | _ -> raise (Error "Unknown error: type unknown")
+        in
+        let loop_end_block = insertion_block builder in 
+        let after_block = append_block context "afterloop" func in
+        ignore(build_cond_br end_cond loop_block after_block builder);
+
+        position_at_end after_block builder;
+
+        add_incoming (next_var, loop_end_block) variable;
+
+        begin
+            match old_val with
+            | Some old_val -> Hashtbl.add named_values identifier old_val
+            | None -> ()
+        end;
+
+        match string_of_lltype (type_of assign_val) with
+        | "double" -> const_float double_type 0.0
+        | "i8" -> const_int i8_type 0
+        | "i64" -> const_int i64_type 0
+        | _ -> raise (Error "Unknown error: type unknown")
 
 let codegen_proto = function
     | Ast.Prototype (name, arguments, funtype) ->
@@ -152,8 +221,8 @@ let codegen_func optimizer = function
     | Ast.Function (proto, body) ->
         Hashtbl.clear named_values;
         let func = codegen_proto proto in
-        let bb = append_block context "entry" func in
-        position_at_end bb builder;
+        let block = append_block context "entry" func in
+        position_at_end block builder;
         try
             let ret_val = codegen_expr body in
             let _ = build_ret ret_val builder in

@@ -19,6 +19,23 @@ let rec parse_primary = parser
     | [< 'Token.Any '('; expr = parse_expr; 'Token.Any ')' ?? "Expected ')'" >] -> expr
     (* ifexpr ::= 'if' expr 'then' expr 'else' expr *)
     | [< 'Token.If; condition = parse_expr; 'Token.Then ?? "Expected 'then' in conditional branch."; then_expr = parse_expr; 'Token.Else ?? "Expected 'else' in conditional branch."; else_expr = parse_expr >] -> Ast.If (condition, then_expr, else_expr)
+    (* forexpr ::= 'for' identifier '=' expr ',' expr ',' expr 'in' expr *)
+    | [< 'Token.For; 'Token.Identifier identifier ?? "Expected identifier after for"; 'Token.Any '=' ?? "Expected '=' after for"; stream >] ->
+        begin parser
+            | [< assign = parse_expr; 'Token.Any ',' ?? "Expected ',' after expr in for"; cond = parse_expr; stream >] ->
+                let step =
+                    begin parser
+                        | [< 'Token.Any ','; step = parse_expr >] -> Some step
+                        | [< >] -> None
+                    end stream
+                in
+                begin parser
+                    | [< 'Token.In; body = parse_expr >] ->
+                        Ast.For (identifier, assign, cond, step, body)
+                    | [< >] -> raise (Stream.Error "Unkown token when expected an expression")
+                end stream
+            | [< >] -> raise (Stream.Error "Expected '=' after for")
+        end stream
     (* identifierexpr
      *  ::= identifier
      *  ::= identifier '(' argumentexpr ')' *)
