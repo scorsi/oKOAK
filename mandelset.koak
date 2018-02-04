@@ -1,27 +1,50 @@
-extern putchar(c: double):double;
+extern putchar(c:int):double;
 
-def unary - (e:double):double 0.0 - e;
 
-def binary > (lhs:double rhs:double):double rhs < lhs;
+def unary - (e:double):double
+    0.0 - e
+;
+
+def binary > 80 (lhs:double rhs:double):double
+    rhs < lhs
+;
+
+def binary | 40 (lhs:double rhs:double):double
+    if lhs then
+        1.0
+    else if rhs then
+        1.0
+    else
+        0.0
+;
+
+def binary : 1 (lhs:double rhs:double):double
+    rhs
+;
+
+def unary ~ 1 (e:double):int
+    0
+;
+
 
 def printdensity(d:double):double
     if d > 8.0 then
-        putchar(32.0)
+        putchar(32)
     else if d > 4.0 then
-        putchar(46.0)
+        putchar(46)
     else if d > 2.0 then
-        putchar(43.0)
+        putchar(43)
     else
-        putchar(42.0)
+        putchar(42)
 ;
 
 def mandelconverger(real:double imag:double iters:double creal:double cimag:double):double
-    if iters > 255.0 | (real*real + imag*imag > 4.0) then
+    if iters > 255.0 | (real * real + imag * imag > 4.0) then
         iters
     else
-        mandelconverger(real*real - imag*imag + creal,
-                        2.0*real*imag + cimag,
-                        iters+1, creal, cimag)
+        mandelconverger(real * real - imag * imag + creal,
+                        2.0 * real * imag + cimag,
+                        iters + 1.0, creal, cimag)
 ;
 
 def mandelconverge(real:double imag:double):double
@@ -29,17 +52,21 @@ def mandelconverge(real:double imag:double):double
 ;
 
 def mandelhelp(xmin:double xmax:double xstep:double ymin:double ymax:double ystep:double):double
-    for y = ymin, y < ymax, ystep in (
-        (for x = xmin, x < xmax, xstep in
-            printdensity(mandelconverge(x,y)))
-        : putchar(10.0))
+    for y = ymin, y < ymax, ystep in
+        (
+            (
+                for x = xmin, x < xmax, xstep in
+                    printdensity(mandelconverge(x, y))
+            )
+            : putchar(10)
+        )
 ;
 
 def mandel(realstart:double imagstart:double realmag:double imagmag:double):double
-    mandelhelp(realstart, realstart+realmag*78.0, realmag,
-              imagstart, imagstart+imagmag*40.0, imagmag)
+    mandelhelp(realstart, realstart + realmag * 78.0, realmag,
+               imagstart, imagstart + imagmag * 40.0, imagmag)
 ;
 
-def main():double
-    mandel(-2.3, -1.3, 0.05, 0.07)
+def main():int
+    ~ mandel(-2.3, -1.3, 0.05, 0.07)
 ;

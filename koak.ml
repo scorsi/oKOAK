@@ -57,11 +57,20 @@ let start stream =
 ;;
 
 let _ =
-    Hashtbl.add Parser.binop_precedence ':' 2;
-    Hashtbl.add Parser.binop_precedence '<' 10;
-    Hashtbl.add Parser.binop_precedence '+' 20;
-    Hashtbl.add Parser.binop_precedence '-' 20;
-    Hashtbl.add Parser.binop_precedence '*' 40;
+    (*
+    Hashtbl.add Parser.binop_precedence '|' 40;
+    Hashtbl.add Parser.binop_precedence '^' 50;
+    Hashtbl.add Parser.binop_precedence '&' 60;
+    *)
+
+    Hashtbl.add Parser.binop_precedence '<' 80;
+    (*Hashtbl.add Parser.binop_precedence '>' 80;*)
+
+    Hashtbl.add Parser.binop_precedence '+' 100;
+    Hashtbl.add Parser.binop_precedence '-' 100;
+    Hashtbl.add Parser.binop_precedence '*' 110;
+    Hashtbl.add Parser.binop_precedence '/' 110;
+    (*Hashtbl.add Parser.binop_precedence '%' 110;*)
 
     if (Array.length Sys.argv) > 1 
     then

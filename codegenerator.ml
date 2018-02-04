@@ -45,12 +45,24 @@ let rec codegen_expr = function
                 | "double" ->
                     begin
                         match op with
+                        (*
+                        | '|' -> build_or lhs_val rhs_val "ortmp" builder
+                        | '^' -> build_xor lhs_val rhs_val "xortmp" builder
+                        | '&' -> build_and lhs_val rhs_val "andtmp" builder
+                        
+                        | '>' ->
+                            let i = build_fcmp Fcmp.Ugt lhs_val rhs_val "cmpgttmp" builder in
+                            build_uitofp i double_type "boolcasttmp" builder
+                        *)
+                        | '<' ->
+                            let i = build_fcmp Fcmp.Ult lhs_val rhs_val "cmplttmp" builder in
+                            build_uitofp i double_type "boolcasttmp" builder
+
                         | '+' -> build_fadd lhs_val rhs_val "addtmp" builder
                         | '-' -> build_fsub lhs_val rhs_val "subtmp" builder
                         | '*' -> build_fmul lhs_val rhs_val "multmp" builder
-                        | '<' ->
-                            let i = build_fcmp Fcmp.Ult lhs_val rhs_val "cmptmp" builder in
-                            build_uitofp i double_type "boolcasttmp" builder
+                        | '/' -> build_fdiv lhs_val rhs_val "divtmp" builder
+
                         | _ ->
                             let call = "binary" ^ (String.make 1 op) in
                             let call =
@@ -63,12 +75,24 @@ let rec codegen_expr = function
                 | "i8" ->
                     begin
                         match op with
-                        | '+' -> build_add lhs_val rhs_val "addtmp" builder
-                        | '-' -> build_sub lhs_val rhs_val "subtmp" builder
-                        | '*' -> build_mul lhs_val rhs_val "multmp" builder
+                        (*
+                        | '|' -> build_or lhs_val rhs_val "ortmp" builder
+                        | '^' -> build_xor lhs_val rhs_val "xortmp" builder
+                        | '&' -> build_and lhs_val rhs_val "andtmp" builder
+
+                        | '>' ->
+                            let i = build_icmp Icmp.Sgt lhs_val rhs_val "cmptmp" builder in
+                            build_intcast i i8_type "boolcasttmp" builder
+                        *)
                         | '<' ->
                             let i = build_icmp Icmp.Slt lhs_val rhs_val "cmptmp" builder in
                             build_intcast i i8_type "boolcasttmp" builder
+
+                        | '+' -> build_add lhs_val rhs_val "addtmp" builder
+                        | '-' -> build_sub lhs_val rhs_val "subtmp" builder
+                        | '*' -> build_mul lhs_val rhs_val "multmp" builder
+                        | '/' -> build_sdiv lhs_val rhs_val "divtmp" builder
+
                         | _ -> 
                             let call = "binary" ^ (String.make 1 op) in
                             let call =
@@ -81,12 +105,24 @@ let rec codegen_expr = function
                 | "i64" ->
                     begin
                         match op with
-                        | '+' -> build_add lhs_val rhs_val "addtmp" builder
-                        | '-' -> build_sub lhs_val rhs_val "subtmp" builder
-                        | '*' -> build_mul lhs_val rhs_val "multmp" builder
+                        (*
+                        | '|' -> build_or lhs_val rhs_val "ortmp" builder
+                        | '^' -> build_xor lhs_val rhs_val "xortmp" builder
+                        | '&' -> build_and lhs_val rhs_val "andtmp" builder
+
+                        | '>' ->
+                            let i = build_icmp Icmp.Sgt lhs_val rhs_val "cmptmp" builder in
+                            build_intcast i i64_type "boolcasttmp" builder
+                        *)
                         | '<' ->
                             let i = build_icmp Icmp.Slt lhs_val rhs_val "cmptmp" builder in
                             build_intcast i i64_type "boolcasttmp" builder
+
+                        | '+' -> build_add lhs_val rhs_val "addtmp" builder
+                        | '-' -> build_sub lhs_val rhs_val "subtmp" builder
+                        | '*' -> build_mul lhs_val rhs_val "multmp" builder
+                        | '/' -> build_sdiv lhs_val rhs_val "divtmp" builder
+                        
                         | _ -> 
                             let call = "binary" ^ (String.make 1 op) in
                             let call =
@@ -184,7 +220,12 @@ let rec codegen_expr = function
                 | "i64" -> const_int i64_type 0
                 | _ -> raise (Error "Unknown error: type unknown")
         in
-        let next_var = build_add variable step_val "nextval" builder in
+        let next_var =
+            match string_of_lltype (type_of step_val) with
+            | "double" -> build_fadd variable step_val "nextval" builder
+            | "i8" | "i64" -> build_add variable step_val "nextval" builder
+            | _ -> raise (Error "Unknown error: type unknown")
+        in
         let end_cond = codegen_expr cond in
         let end_cond =
             match string_of_lltype (type_of step_val) with
@@ -265,6 +306,7 @@ let codegen_func optimizer = function
         try
             let ret_val = codegen_expr body in
             let _ = build_ret ret_val builder in
+            dump_value func;
             assert_valid_function func;
             let _ = PassManager.run_function func optimizer in
             func
