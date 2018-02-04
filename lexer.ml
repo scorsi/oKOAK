@@ -58,6 +58,8 @@ and lexer_identifier buffer = parser
         match Buffer.contents buffer with
         | "def" -> [< 'Token.Def; stream >]
         | "extern" -> [< 'Token.Extern; stream >]
+        | "binary" -> [< 'Token.Binary; stream >]
+        | "unary" -> [< 'Token.Unary; stream >]
         | "true" -> [< 'Token.Boolean 1; stream >]
         | "false" -> [< 'Token.Boolean 0; stream >]
         | "if" -> [< 'Token.If; stream >]

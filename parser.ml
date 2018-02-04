@@ -85,9 +85,27 @@ let parse_prototype =
     let rec parse_args args = parser
         | [< 'Token.Identifier id; 'Token.Any ':' ?? "Expected ':' in prototype argument"; 'Token.Identifier argtype ?? "Expected argument type in prototype argument"; args' = parse_args ((Ast.Argument (id, argtype)) :: args) >] -> args'
         | [< >] -> args
-    in parser
+    in
+    let parse_operator = parser
+        | [< 'Token.Unary >] -> "unary", 1
+        | [< 'Token.Binary >] -> "binary", 2
+    in
+    let parse_precedence = parser
+        | [< 'Token.Integer n >] -> n
+        | [< >] -> 30
+    in
+    parser
     | [< 'Token.Identifier id; 'Token.Any '(' ?? "Expected '(' in prototype"; args = parse_args []; 'Token.Any ')' ?? "Expected ')' in prototype"; 'Token.Any ':' ?? "Expected ':' in prototype"; 'Token.Identifier funtype ?? "Expected function type in prototype" >] ->
         Ast.Prototype (id, Array.of_list (List.rev args), funtype)
+    | [< (prefix, kind) = parse_operator; 'Token.Any op ?? "Expected an operator"; precedence = parse_precedence; 'Token.Any '(' ?? "Expected '(' in prototype"; args = parse_args []; 'Token.Any ')' ?? "Expected ')' in prototype"; 'Token.Any ':' ?? "Expected ':' in prototype"; 'Token.Identifier funtype ?? "Expected function type in prototype" >] ->
+        let name = prefix ^ (String.make 1 op) in
+        let args = Array.of_list (List.rev args) in
+        if (Array.length args) != kind
+        then raise (Stream.Error "Invalid number of arguments for operator prototype")
+        else
+            if kind == 1
+            then Ast.Prototype (name, args, funtype)
+            else Ast.BinaryPrototype (name, args, precedence, funtype)
     | [< >] -> raise (Stream.Error "Expected function name in prototype")
 
 (* definition ::= 'def' prototype expression *)

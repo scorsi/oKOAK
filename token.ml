@@ -3,6 +3,8 @@
 type token =
     | Def
     | Extern
+    | Binary
+    | Unary
     | If
     | Then
     | Else

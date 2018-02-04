@@ -35,6 +35,7 @@ let rec codegen_expr = function
         (try Hashtbl.find named_values name
         with
         | Not_found -> raise (Error "Unknown variable name"))
+    (*
     | Ast.Binary (op, lhs, rhs) ->
         let lhs_val = codegen_expr lhs in
         let rhs_val = codegen_expr rhs in
@@ -77,6 +78,27 @@ let rec codegen_expr = function
                     end
                 | _ -> raise (Error "Unknown error: type unknown")
             else raise (Error "Mismatch type")
+        end
+    *)
+    | Ast.Binary (op, lhs, rhs) ->
+        let lhs_val = codegen_expr lhs in
+        let rhs_val = codegen_expr rhs in
+        begin
+            match op with
+            | '+' -> build_add lhs_val rhs_val "addtmp" builder
+            | '-' -> build_sub lhs_val rhs_val "subtmp" builder
+            | '*' -> build_mul lhs_val rhs_val "multmp" builder
+            | '<' ->
+                let i = build_icmp Icmp.Slt lhs_val rhs_val "cmptmp" builder in
+                build_intcast i i64_type "boolcasttmp" builder
+            | _ ->
+                let call = "binary" ^ (String.make 1 op) in
+                let call =
+                    match lookup_function call kmodule with
+                    | Some call -> call
+                    | None -> raise (Error "Invalid binary operator")
+                in
+                build_call call [| lhs_val; rhs_val |] "binop" builder
         end
     | Ast.Call (id, args) ->
         let id =
@@ -184,7 +206,7 @@ let rec codegen_expr = function
         | _ -> raise (Error "Unknown error: type unknown")
 
 let codegen_proto = function
-    | Ast.Prototype (name, arguments, funtype) ->
+    | Ast.Prototype (name, arguments, funtype) | Ast.BinaryPrototype (name, arguments, _, funtype) ->
         let rec create_arguments_array index args =
             if (Array.length arguments) > index
             then
@@ -221,6 +243,15 @@ let codegen_func optimizer = function
     | Ast.Function (proto, body) ->
         Hashtbl.clear named_values;
         let func = codegen_proto proto in
+
+        begin
+            match proto with
+            | Ast.BinaryPrototype (name, _, precedence, _) ->
+                let op = name.[(String.length name) - 1] in
+                Hashtbl.add Parser.binop_precedence op precedence;
+            | _ -> ()
+        end;
+
         let block = append_block context "entry" func in
         position_at_end block builder;
         try
