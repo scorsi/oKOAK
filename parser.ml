@@ -62,7 +62,7 @@ and parse_binop_rhs expr_prec lhs stream =
         then lhs
         else begin
             Stream.junk stream;
-            let rhs = parse_primary stream in
+            let rhs = parse_unary stream in
             let rhs =
                 match Stream.peek stream with
                 | Some (Token.Any op2) ->
@@ -78,7 +78,14 @@ and parse_binop_rhs expr_prec lhs stream =
 
 (* expression ::= primary binoprhs *)
 and parse_expr = parser
-    | [< lhs = parse_primary; stream >] -> parse_binop_rhs 0 lhs stream
+    | [< lhs = parse_unary; stream >] -> parse_binop_rhs 0 lhs stream
+
+(* unary
+ *   ::= primary
+ *   ::= '!' unary *)
+and parse_unary = parser
+    | [< 'Token.Any op when op != '(' && op != ')'; expr = parse_expr >] -> Ast.Unary (op, expr)
+    | [< stream >] -> parse_primary stream
 
 (* prototype ::= identifier '(' (identifier ':' identifier)* ')' *)
 let parse_prototype =

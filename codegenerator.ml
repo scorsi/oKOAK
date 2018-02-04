@@ -35,7 +35,6 @@ let rec codegen_expr = function
         (try Hashtbl.find named_values name
         with
         | Not_found -> raise (Error "Unknown variable name"))
-    (*
     | Ast.Binary (op, lhs, rhs) ->
         let lhs_val = codegen_expr lhs in
         let rhs_val = codegen_expr rhs in
@@ -52,7 +51,14 @@ let rec codegen_expr = function
                         | '<' ->
                             let i = build_fcmp Fcmp.Ult lhs_val rhs_val "cmptmp" builder in
                             build_uitofp i double_type "boolcasttmp" builder
-                        | _ -> raise (Error "Invalid binary operator")
+                        | _ ->
+                            let call = "binary" ^ (String.make 1 op) in
+                            let call =
+                                match lookup_function call kmodule with
+                                | Some call -> call
+                                | None -> raise (Error "Invalid binary operator")
+                            in
+                            build_call call [| lhs_val; rhs_val |] "binop" builder
                     end
                 | "i8" ->
                     begin
@@ -63,7 +69,14 @@ let rec codegen_expr = function
                         | '<' ->
                             let i = build_icmp Icmp.Slt lhs_val rhs_val "cmptmp" builder in
                             build_intcast i i8_type "boolcasttmp" builder
-                        | _ -> raise (Error "Invalid binary operator")
+                        | _ -> 
+                            let call = "binary" ^ (String.make 1 op) in
+                            let call =
+                                match lookup_function call kmodule with
+                                | Some call -> call
+                                | None -> raise (Error "Invalid binary operator")
+                            in
+                            build_call call [| lhs_val; rhs_val |] "binop" builder
                     end
                 | "i64" ->
                     begin
@@ -74,32 +87,27 @@ let rec codegen_expr = function
                         | '<' ->
                             let i = build_icmp Icmp.Slt lhs_val rhs_val "cmptmp" builder in
                             build_intcast i i64_type "boolcasttmp" builder
-                        | _ -> raise (Error "Invalid binary operator")
+                        | _ -> 
+                            let call = "binary" ^ (String.make 1 op) in
+                            let call =
+                                match lookup_function call kmodule with
+                                | Some call -> call
+                                | None -> raise (Error "Invalid binary operator")
+                            in
+                            build_call call [| lhs_val; rhs_val |] "binop" builder
                     end
                 | _ -> raise (Error "Unknown error: type unknown")
             else raise (Error "Mismatch type")
         end
-    *)
-    | Ast.Binary (op, lhs, rhs) ->
-        let lhs_val = codegen_expr lhs in
-        let rhs_val = codegen_expr rhs in
-        begin
-            match op with
-            | '+' -> build_add lhs_val rhs_val "addtmp" builder
-            | '-' -> build_sub lhs_val rhs_val "subtmp" builder
-            | '*' -> build_mul lhs_val rhs_val "multmp" builder
-            | '<' ->
-                let i = build_icmp Icmp.Slt lhs_val rhs_val "cmptmp" builder in
-                build_intcast i i64_type "boolcasttmp" builder
-            | _ ->
-                let call = "binary" ^ (String.make 1 op) in
-                let call =
-                    match lookup_function call kmodule with
-                    | Some call -> call
-                    | None -> raise (Error "Invalid binary operator")
-                in
-                build_call call [| lhs_val; rhs_val |] "binop" builder
-        end
+    | Ast.Unary (op, expr) ->
+        let expr = codegen_expr expr in
+        let call = "unary" ^ (String.make 1 op) in
+        let call =
+            match lookup_function call kmodule with
+            | Some call -> call
+            | None -> raise (Error "Invalid unary operator")
+        in
+        build_call call [| expr |] "unop" builder
     | Ast.Call (id, args) ->
         let id =
             match lookup_function id kmodule with
